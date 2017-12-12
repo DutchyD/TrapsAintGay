@@ -1,39 +1,69 @@
 package io.veron.module;
 
-import io.veron.messenger.Messenger;
-import org.bukkit.plugin.java.JavaPlugin;
+import io.veron.exceptions.ModuleException;
+import io.veron.messenger.Prefix;
 
 public abstract class Module {
 
     private boolean isEnabled = false;
-    protected static JavaPlugin veron;
-    protected static Messenger tools;
+    private boolean isLoaded = false;
+    private boolean isBroken = false;
+    private final String id;
 
-    public abstract void onLoad();
-    public abstract void onEnable();
-    public abstract void onDisable();
-    public abstract void onReload();
+    public abstract void onLoad() throws ModuleException;
 
-    void load(JavaPlugin veron) {
-        this.veron = veron;
+    public abstract void onEnable() throws ModuleException;
+
+    public abstract void onDisable() throws ModuleException;
+
+    public Module(String id) {
+        this.id = id;
     }
 
-    void enable() {
+    void load() throws ModuleException {
+        this.onLoad();
+        this.isLoaded = true;
+    }
+
+    void enable() throws ModuleException {
+        if (!this.isLoaded)
+            throw new ModuleException("Module [" + this.id + "] isn't loaded. Load before enabling.");
+
+        if (this.isBroken)
+            throw new ModuleException("Module [" + this.id + "] broke. > \nUnderstandable have a nice day.");
+
+        if (this.isEnabled) return;
+
         this.isEnabled = true;
-        this.onEnable();
     }
 
-    void disable() {
-        this.isEnabled = false;
-        this.onDisable();
+    void disable() throws ModuleException {
+        if (!this.isEnabled) return;
+
+        try { this.onDisable(); }
+        catch (ModuleException e) { e.printStackTrace(); this.isBroken = true; }
+        finally { this.isEnabled = false; }
     }
 
-    public boolean isEnabled() {
+    boolean isEnabled() {
         return this.isEnabled;
     }
 
-    protected void reload() {
+    boolean isBroken() {
+        return this.isBroken;
+    }
+
+    boolean isLoaded() {
+        return this.isLoaded;
+    }
+
+    void reload() throws ModuleException {
         this.disable();
         this.enable();
     }
+
+    String getId() {
+        return this.id;
+    }
 }
+

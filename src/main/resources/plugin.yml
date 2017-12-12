@@ -1,2 +1,11 @@
 name: Veron
 main: io.veron.Veron
+version: 0.0.1
+commands:
+  module:
+    description: The main module command, used for controlling modules
+    usage: /module <enable/disable> <modulename>
+  essentials:
+    description: The main essentials command, mainly used for reloading and testing
+    usage: /essentials [reload/test]
+

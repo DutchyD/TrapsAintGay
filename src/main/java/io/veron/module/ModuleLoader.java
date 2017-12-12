@@ -1,43 +1,83 @@
 package io.veron.module;
 
-import io.veron.module.Module;
-import io.veron.module.ModuleInformation;
-import io.veron.utility.Toolkit;
+import io.veron.Veron;
+import io.veron.exceptions.ModuleException;
 import org.apache.commons.lang.Validate;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashMap;
 
 public class ModuleLoader {
 
     private HashMap<String, Module> modules = new HashMap<>();
-    private final JavaPlugin veron;
+    private final Veron veron;
 
-    public ModuleLoader(JavaPlugin veron, Toolkit tools) {
+    public ModuleLoader(Veron veron) {
         this.veron = veron;
-        Module.tools = tools;
     }
 
     public void load(Module module) {
         Validate.notNull(module);
 
-        if (!module.getClass().isAnnotationPresent(ModuleInformation.class))
-            return;
+        ModuleValidator validator = new DefaultModuleValidator();
+        validator.isValid(module);
 
-        this.modules.put(module.getClass().getAnnotation(ModuleInformation.class).id(), module);
-
-        module.load(veron);
+        if (module.isLoaded())
+            this.modules.put(module.getId().toLowerCase(), module);
     }
 
     public void enable() {
-        modules.values().forEach(Module::enable);
+        try {
+            for (Module module : modules.values()) {
+                if (!module.isEnabled()) {
+                    module.enable();
+                }
+            }
+        } catch (ModuleException e) { e.printStackTrace(); }
+    }
+
+    public boolean enable(String name) {
+
+        String nameLC = name.toLowerCase();
+
+        if (!modules.containsKey(nameLC)) return false;
+
+        Module module = this.modules.get(nameLC);
+
+        if (module.isEnabled()) return false;
+
+        try { module.enable(); }
+        catch (ModuleException e) { e.printStackTrace(); }
+
+        return module.isEnabled();
     }
 
     public void disable() {
-        modules.values().forEach(Module::enable);
+        try {
+            for (Module module : modules.values()) {
+                if (module.isEnabled()) {
+                    module.disable();
+                }
+            }
+        } catch (ModuleException e) { e.printStackTrace(); }
     }
 
-    public void flush() {
+    public boolean disable(String name) {
+
+        String nameLC = name.toLowerCase();
+
+        if (!modules.containsKey(nameLC)) return false;
+
+        Module module = this.modules.get(nameLC);
+
+        if (!module.isEnabled()) return false;
+
+        try { module.disable(); }
+        catch (ModuleException e) { e.printStackTrace(); }
+
+        return !module.isEnabled();
+    }
+
+    public void clear() {
         this.disable();
         this.modules.clear();
         this.modules = null;
@@ -47,4 +87,26 @@ public class ModuleLoader {
         this.disable();
         this.enable();
     }
+
+    public boolean reload(String name) {
+
+        String nameLC = name.toLowerCase();
+
+        if (!modules.containsKey(nameLC)) return false;
+
+        Module module = this.modules.get(nameLC);
+
+        try { module.reload(); }
+        catch (ModuleException e) {
+
+            e.printStackTrace();
+
+            try { module.disable(); }
+            catch (ModuleException ex) { ex.printStackTrace(); }
+        }
+
+        return module.isEnabled();
+    }
 }
+
+
